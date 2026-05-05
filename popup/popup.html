@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Web Safe</title>
+    <link rel="stylesheet" href="popup.css" />
+  </head>
+  <body>
+    <main class="app">
+      <div class="hero">
+        <p class="eyebrow">Risk Check</p>
+        <h1>Web Safe</h1>
+        <p class="subtext">Быстрая эвристическая проверка активной вкладки.</p>
+      </div>
+
+      <section class="score-card">
+        <div class="score-ring" id="scoreRing">
+          <span id="scoreValue">--</span>
+        </div>
+        <div class="score-copy">
+          <p class="label" id="riskLabel">Ожидание анализа</p>
+          <p class="hostname" id="hostname">Открой сайт и нажми кнопку ниже</p>
+        </div>
+      </section>
+
+      <button class="analyze-btn" id="analyzeButton">Проверить текущий сайт</button>
+
+      <section class="facts">
+        <div class="fact">
+          <span>Протокол</span>
+          <strong id="protocolValue">-</strong>
+        </div>
+        <div class="fact">
+          <span>Доменная зона</span>
+          <strong id="tldValue">-</strong>
+        </div>
+      </section>
+
+      <section>
+        <h2>Причины оценки</h2>
+        <ul class="reasons" id="reasonsList">
+          <li>Пока нет данных для анализа.</li>
+        </ul>
+      </section>
+
+      <p class="footnote">
+        Это MVP на эвристиках, а не полноценный антивирусный вердикт.
+      </p>
+    </main>
+
+    <script type="module" src="popup.js"></script>
+  </body>
+</html>

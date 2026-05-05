@@ -1,0 +1,30 @@
+{
+  "manifest_version": 3,
+  "name": "Web Safe",
+  "version": "0.1.0",
+  "description": "Оценивает риск сайта по URL и базовым признакам страницы.",
+  "permissions": [
+    "tabs",
+    "scripting",
+    "activeTab"
+  ],
+  "host_permissions": [
+    "<all_urls>"
+  ],
+  "action": {
+    "default_title": "Web Safe",
+    "default_popup": "popup/popup.html"
+  },
+  "background": {
+    "scripts": [
+      "src/background.js"
+    ],
+    "service_worker": "src/background.js",
+    "type": "module"
+  },
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "web-safe@local.dev"
+    }
+  }
+}
