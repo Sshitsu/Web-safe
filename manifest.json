@@ -2,11 +2,12 @@
   "manifest_version": 3,
   "name": "Web Safe",
   "version": "0.1.0",
-  "description": "Оценивает риск сайта по URL и базовым признакам страницы.",
+  "description": "Оценивает риск сайта по URL, базам угроз, DNS/RDAP и признакам страницы.",
   "permissions": [
     "tabs",
     "scripting",
-    "activeTab"
+    "activeTab",
+    "storage"
   ],
   "host_permissions": [
     "<all_urls>"
@@ -20,6 +21,10 @@
       "src/background.js"
     ],
     "service_worker": "src/background.js",
+    "preferred_environment": [
+      "document",
+      "service_worker"
+    ],
     "type": "module"
   },
   "browser_specific_settings": {

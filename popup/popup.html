@@ -35,6 +35,26 @@
           <span>Доменная зона</span>
           <strong id="tldValue">-</strong>
         </div>
+        <div class="fact">
+          <span>База угроз</span>
+          <strong id="threatValue">-</strong>
+        </div>
+        <div class="fact">
+          <span>Google SB</span>
+          <strong id="safeBrowsingValue">-</strong>
+        </div>
+        <div class="fact">
+          <span>Возраст домена</span>
+          <strong id="domainAgeValue">-</strong>
+        </div>
+        <div class="fact">
+          <span>URL-модель</span>
+          <strong id="modelValue">-</strong>
+        </div>
+        <div class="fact">
+          <span>DNS адреса</span>
+          <strong id="dnsValue">-</strong>
+        </div>
       </section>
 
       <section>
@@ -44,8 +64,18 @@
         </ul>
       </section>
 
+      <section>
+        <div class="section-heading">
+          <h2>История</h2>
+          <button class="text-btn" id="clearHistoryButton" type="button">Очистить</button>
+        </div>
+        <ol class="history" id="historyList">
+          <li class="empty-state">Проверок пока нет.</li>
+        </ol>
+      </section>
+
       <p class="footnote">
-        Это MVP на эвристиках, а не полноценный антивирусный вердикт.
+        Вердикт помогает оценить риск, но не заменяет полноценную защиту браузера.
       </p>
     </main>
 

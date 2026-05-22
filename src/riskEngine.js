@@ -1,3 +1,12 @@
+import {
+  getHostnameDepth,
+  getRegistrableDomain,
+  getTld,
+  hasPunycode,
+  isIpAddress
+} from "./domainUtils.js";
+import { predictUrlRisk } from "./urlFeatureModel.js";
+
 const SUSPICIOUS_TLDS = new Set([
   "zip",
   "review",
@@ -31,23 +40,6 @@ const SUSPICIOUS_KEYWORDS = [
   "free"
 ];
 
-function isIpAddress(hostname) {
-  return /^(?:\d{1,3}\.){3}\d{1,3}$/.test(hostname);
-}
-
-function getHostnameDepth(hostname) {
-  return hostname.split(".").filter(Boolean).length;
-}
-
-function hasPunycode(hostname) {
-  return hostname.includes("xn--");
-}
-
-function getTld(hostname) {
-  const parts = hostname.split(".").filter(Boolean);
-  return parts[parts.length - 1] || "";
-}
-
 function findKeywordMatches(text) {
   const lowerText = text.toLowerCase();
   return SUSPICIOUS_KEYWORDS.filter((keyword) => lowerText.includes(keyword));
@@ -60,7 +52,10 @@ export function analyzeSite(input) {
     pageText = "",
     hasPasswordField = false,
     hasIframe = false,
-    formCount = 0
+    formCount = 0,
+    threatIntel = null,
+    networkSignals = null,
+    safeBrowsing = null
   } = input;
 
   const reasons = [];
@@ -82,11 +77,28 @@ export function analyzeSite(input) {
   }
 
   const hostname = parsedUrl.hostname.toLowerCase();
+  const registrableDomain = getRegistrableDomain(hostname);
   const pathname = parsedUrl.pathname.toLowerCase();
   const protocol = parsedUrl.protocol;
+  const urlPrediction = predictUrlRisk(url);
   const keywordMatches = findKeywordMatches(
     `${hostname} ${pathname} ${title} ${pageText.slice(0, 1000)}`
   );
+
+  if (threatIntel?.isKnownPhishing) {
+    score += 85;
+    const match = threatIntel.matches[0];
+    reasons.push(
+      `Совпадение с базой известных фишинговых сайтов: ${match.source} (${match.type}: ${match.value}).`
+    );
+  }
+
+  if (safeBrowsing?.isUnsafe) {
+    score += 90;
+    const match = safeBrowsing.matches[0];
+    const threatType = match?.threatType || "unsafe";
+    reasons.push(`Google Safe Browsing пометил URL как опасный: ${threatType}.`);
+  }
 
   if (protocol !== "https:") {
     score += 30;
@@ -140,6 +152,68 @@ export function analyzeSite(input) {
     reasons.push("На странице много форм для ввода данных.");
   }
 
+  if (urlPrediction.ok && urlPrediction.probability >= 0.85) {
+    score += 25;
+    reasons.push(
+      `URL-модель оценила адрес как очень подозрительный (${Math.round(
+        urlPrediction.probability * 100
+      )}%).`
+    );
+  } else if (urlPrediction.ok && urlPrediction.probability >= 0.65) {
+    score += 15;
+    reasons.push(
+      `URL-модель видит повышенный риск в структуре адреса (${Math.round(
+        urlPrediction.probability * 100
+      )}%).`
+    );
+  } else if (urlPrediction.ok && urlPrediction.probability >= 0.45) {
+    score += 8;
+    reasons.push(
+      `URL-модель нашла слабые подозрительные признаки (${Math.round(
+        urlPrediction.probability * 100
+      )}%).`
+    );
+  }
+
+  const domainAgeDays = networkSignals?.rdap?.ageDays;
+  if (Number.isFinite(domainAgeDays)) {
+    if (domainAgeDays < 7) {
+      score += 35;
+      reasons.push("Домен зарегистрирован меньше недели назад.");
+    } else if (domainAgeDays < 30) {
+      score += 25;
+      reasons.push("Домен зарегистрирован меньше месяца назад.");
+    } else if (domainAgeDays < 90) {
+      score += 12;
+      reasons.push("Домену меньше 90 дней, для фишинга это частый признак.");
+    }
+  }
+
+  const lastChangedDays = networkSignals?.rdap?.lastChangedDays;
+  if (Number.isFinite(lastChangedDays) && lastChangedDays < 7) {
+    score += 6;
+    reasons.push("Регистрационные данные домена менялись в последние 7 дней.");
+  }
+
+  if (networkSignals?.dns?.ok && !networkSignals.dns.hasAddress) {
+    score += 25;
+    reasons.push("DNS не вернул A/AAAA адреса для домена.");
+  }
+
+  if (networkSignals?.dns?.ok && !networkSignals.dns.hasNameServers) {
+    score += 8;
+    reasons.push("DNS не вернул NS-записи для домена.");
+  }
+
+  if (
+    networkSignals?.dns?.ok &&
+    Number.isFinite(networkSignals.dns.minTtl) &&
+    networkSignals.dns.minTtl <= 180
+  ) {
+    score += 5;
+    reasons.push("У DNS-записей очень короткий TTL, это бывает у быстро меняющейся инфраструктуры.");
+  }
+
   const normalizedScore = Math.max(0, Math.min(100, score));
 
   let label = "Низкий риск";
@@ -150,7 +224,7 @@ export function analyzeSite(input) {
   }
 
   if (reasons.length === 0) {
-    reasons.push("Явных подозрительных признаков по базовым эвристикам не найдено.");
+    reasons.push("Явных подозрительных признаков по доступным сигналам не найдено.");
   }
 
   return {
@@ -159,9 +233,34 @@ export function analyzeSite(input) {
     reasons,
     facts: {
       hostname,
+      registrableDomain,
       protocol: protocol.replace(":", ""),
       tld,
-      title: title.slice(0, 120)
+      title: title.slice(0, 120),
+      domainAgeDays: Number.isFinite(domainAgeDays) ? domainAgeDays : null,
+      threatMatches: threatIntel?.matches?.length || 0,
+      threatSources: threatIntel?.sources?.filter((source) => source.ok).length || 0,
+      safeBrowsingStatus: getSafeBrowsingStatus(safeBrowsing),
+      safeBrowsingMatches: safeBrowsing?.matches?.length || 0,
+      urlModelScore: urlPrediction.ok ? urlPrediction.score : null,
+      dnsAddressCount: networkSignals?.dns?.addressCount ?? null,
+      dnsNameServerCount: networkSignals?.dns?.nameServerCount ?? null
     }
   };
+}
+
+function getSafeBrowsingStatus(safeBrowsing) {
+  if (!safeBrowsing?.ok) {
+    return "unavailable";
+  }
+
+  if (!safeBrowsing.configured) {
+    return "not_configured";
+  }
+
+  if (!safeBrowsing.checked) {
+    return "not_checked";
+  }
+
+  return safeBrowsing.isUnsafe ? "unsafe" : "clean";
 }

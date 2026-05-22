@@ -25,7 +25,7 @@ body {
 }
 
 .app {
-  width: 360px;
+  width: 380px;
   padding: 18px;
 }
 
@@ -60,6 +60,7 @@ h1 {
 .score-card,
 .facts,
 .reasons,
+.history,
 .analyze-btn {
   border: 1px solid var(--border);
   box-shadow: var(--shadow);
@@ -151,9 +152,40 @@ h1 {
   color: var(--muted);
 }
 
+.fact strong {
+  font-size: 13px;
+  line-height: 1.2;
+}
+
 h2 {
   margin: 18px 0 10px;
   font-size: 16px;
+}
+
+.section-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.section-heading h2 {
+  margin-bottom: 10px;
+}
+
+.text-btn {
+  border: 0;
+  background: transparent;
+  color: var(--accent-strong);
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 4px 0;
+}
+
+.text-btn:disabled {
+  color: var(--muted);
+  cursor: default;
 }
 
 .reasons {
@@ -166,6 +198,69 @@ h2 {
 
 .reasons li + li {
   margin-top: 8px;
+}
+
+.history {
+  list-style: none;
+  margin: 0;
+  padding: 8px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.72);
+  font-size: 12px;
+}
+
+.history-item {
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr);
+  gap: 10px;
+  align-items: center;
+  padding: 8px;
+  border-radius: 10px;
+}
+
+.history-item + .history-item {
+  border-top: 1px solid var(--border);
+}
+
+.history-score {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  color: white;
+  font-weight: 800;
+}
+
+.history-score.safe {
+  background: var(--safe);
+}
+
+.history-score.medium {
+  background: var(--medium);
+}
+
+.history-score.danger {
+  background: var(--danger);
+}
+
+.history-host {
+  display: block;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.history-meta {
+  color: var(--muted);
+  display: block;
+  margin-top: 3px;
+}
+
+.empty-state {
+  color: var(--muted);
+  padding: 8px;
 }
 
 .footnote {
