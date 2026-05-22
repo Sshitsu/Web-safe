@@ -67,6 +67,45 @@ async function analyzeActiveTab() {
     func: () => {
       const bodyText = document.body?.innerText || "";
       const pageText = bodyText.replace(/\s+/g, " ").trim().slice(0, 1500);
+      const currentHost = location.hostname.toLowerCase();
+      const readHost = (value) => {
+        try {
+          return new URL(value, location.href).hostname.toLowerCase();
+        } catch (error) {
+          return "";
+        }
+      };
+      const inputSelector = [
+        "input[type='email']",
+        "input[type='password']",
+        "input[type='tel']",
+        "input[name*='card' i]",
+        "input[id*='card' i]",
+        "input[name*='cvv' i]",
+        "input[id*='cvv' i]",
+        "input[name*='pin' i]",
+        "input[id*='pin' i]",
+        "input[name*='code' i]",
+        "input[id*='code' i]"
+      ].join(",");
+      const links = [...document.querySelectorAll("a[href]")].map((link) =>
+        readHost(link.href)
+      );
+      const scripts = [...document.querySelectorAll("script[src]")].map((script) =>
+        readHost(script.src)
+      );
+      const iframes = [...document.querySelectorAll("iframe[src]")].map((iframe) =>
+        readHost(iframe.src)
+      );
+      const forms = [...document.querySelectorAll("form")].map((form) => ({
+        actionHost: readHost(form.getAttribute("action") || location.href),
+        autocomplete: form.getAttribute("autocomplete") || "",
+        hasPasswordField: Boolean(form.querySelector("input[type='password']")),
+        sensitiveInputCount: form.querySelectorAll(inputSelector).length
+      }));
+      const externalLinks = links.filter((host) => host && host !== currentHost);
+      const externalScripts = scripts.filter((host) => host && host !== currentHost);
+      const externalIframes = iframes.filter((host) => host && host !== currentHost);
 
       return {
         title: document.title || "",
@@ -75,7 +114,29 @@ async function analyzeActiveTab() {
           document.querySelector('input[type="password"]')
         ),
         hasIframe: document.querySelectorAll("iframe").length > 0,
-        formCount: document.querySelectorAll("form").length
+        formCount: forms.length,
+        passwordFieldCount: document.querySelectorAll("input[type='password']").length,
+        sensitiveInputCount: document.querySelectorAll(inputSelector).length,
+        hiddenInputCount: document.querySelectorAll("input[type='hidden']").length,
+        linkCount: links.length,
+        scriptCount: scripts.length,
+        iframeCount: iframes.length,
+        externalLinkRatio: links.length ? externalLinks.length / links.length : 0,
+        externalScriptCount: externalScripts.length,
+        externalIframeCount: externalIframes.length,
+        formActionHosts: [...new Set(forms.map((form) => form.actionHost).filter(Boolean))],
+        passwordFormActionHosts: [
+          ...new Set(
+            forms
+              .filter((form) => form.hasPasswordField)
+              .map((form) => form.actionHost)
+              .filter(Boolean)
+          )
+        ],
+        autocompleteOffFormCount: forms.filter(
+          (form) => form.autocomplete.toLowerCase() === "off"
+        ).length,
+        sensitiveFormCount: forms.filter((form) => form.sensitiveInputCount >= 2).length
       };
     }
   });

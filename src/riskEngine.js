@@ -40,6 +40,99 @@ const SUSPICIOUS_KEYWORDS = [
   "free"
 ];
 
+const URGENCY_WORDS = [
+  "urgent",
+  "immediately",
+  "suspended",
+  "blocked",
+  "limited",
+  "verify now",
+  "confirm now",
+  "подтверд",
+  "срочно",
+  "заблок",
+  "огранич",
+  "приостанов"
+];
+
+const BRAND_PROFILES = [
+  {
+    name: "Google",
+    terms: ["google", "gmail"],
+    domains: ["google.com", "gmail.com"]
+  },
+  {
+    name: "Microsoft",
+    terms: ["microsoft", "office 365", "outlook", "onedrive"],
+    domains: ["microsoft.com", "office.com", "live.com", "outlook.com", "onedrive.com"]
+  },
+  {
+    name: "Apple",
+    terms: ["apple", "icloud", "apple id"],
+    domains: ["apple.com", "icloud.com"]
+  },
+  {
+    name: "PayPal",
+    terms: ["paypal"],
+    domains: ["paypal.com"]
+  },
+  {
+    name: "Meta/Facebook",
+    terms: ["facebook", "meta business", "meta ads"],
+    domains: ["facebook.com", "fb.com", "meta.com"]
+  },
+  {
+    name: "Instagram",
+    terms: ["instagram"],
+    domains: ["instagram.com"]
+  },
+  {
+    name: "Netflix",
+    terms: ["netflix"],
+    domains: ["netflix.com"]
+  },
+  {
+    name: "Steam",
+    terms: ["steam"],
+    domains: ["steampowered.com", "steamcommunity.com"]
+  },
+  {
+    name: "Roblox",
+    terms: ["roblox"],
+    domains: ["roblox.com"]
+  },
+  {
+    name: "Discord",
+    terms: ["discord"],
+    domains: ["discord.com", "discord.gg"]
+  },
+  {
+    name: "Telegram",
+    terms: ["telegram"],
+    domains: ["telegram.org", "t.me"]
+  },
+  {
+    name: "Coinbase",
+    terms: ["coinbase"],
+    domains: ["coinbase.com"]
+  },
+  {
+    name: "Binance",
+    terms: ["binance"],
+    domains: ["binance.com"]
+  },
+  {
+    name: "MetaMask",
+    terms: ["metamask"],
+    domains: ["metamask.io"]
+  },
+  {
+    name: "Ledger",
+    terms: ["ledger live", "ledger"],
+    domains: ["ledger.com"]
+  }
+];
+
 function findKeywordMatches(text) {
   const lowerText = text.toLowerCase();
   return SUSPICIOUS_KEYWORDS.filter((keyword) => lowerText.includes(keyword));
@@ -53,6 +146,19 @@ export function analyzeSite(input) {
     hasPasswordField = false,
     hasIframe = false,
     formCount = 0,
+    passwordFieldCount = 0,
+    sensitiveInputCount = 0,
+    hiddenInputCount = 0,
+    linkCount = 0,
+    scriptCount = 0,
+    iframeCount = 0,
+    externalLinkRatio = 0,
+    externalScriptCount = 0,
+    externalIframeCount = 0,
+    formActionHosts = [],
+    passwordFormActionHosts = [],
+    autocompleteOffFormCount = 0,
+    sensitiveFormCount = 0,
     threatIntel = null,
     networkSignals = null,
     safeBrowsing = null
@@ -83,6 +189,19 @@ export function analyzeSite(input) {
   const urlPrediction = predictUrlRisk(url);
   const keywordMatches = findKeywordMatches(
     `${hostname} ${pathname} ${title} ${pageText.slice(0, 1000)}`
+  );
+  const pageTextForSignals = `${title} ${pageText}`.toLowerCase();
+  const brandImpersonationMatches = findBrandImpersonationMatches(
+    pageTextForSignals,
+    registrableDomain
+  );
+  const externalFormHosts = getExternalHosts(formActionHosts, registrableDomain);
+  const externalPasswordFormHosts = getExternalHosts(
+    passwordFormActionHosts,
+    registrableDomain
+  );
+  const hasUrgencyLanguage = URGENCY_WORDS.some((word) =>
+    pageTextForSignals.includes(word)
   );
 
   if (threatIntel?.isKnownPhishing) {
@@ -137,9 +256,40 @@ export function analyzeSite(input) {
     reasons.push(`Есть подозрительные слова: ${keywordMatches.slice(0, 4).join(", ")}.`);
   }
 
+  if (brandImpersonationMatches.length > 0) {
+    const brandNames = brandImpersonationMatches.map((brand) => brand.name).join(", ");
+    const brandScore = hasPasswordField || sensitiveInputCount >= 2 ? 25 : 14;
+    score += brandScore;
+    reasons.push(
+      `Страница упоминает известный бренд (${brandNames}), но домен не похож на официальный.`
+    );
+  }
+
   if (hasPasswordField && protocol !== "https:") {
     score += 20;
     reasons.push("На странице есть поле пароля, но соединение не защищено.");
+  }
+
+  if (externalPasswordFormHosts.length > 0) {
+    score += 35;
+    reasons.push(
+      `Форма с паролем отправляет данные на внешний домен: ${externalPasswordFormHosts[0]}.`
+    );
+  } else if (externalFormHosts.length > 0 && sensitiveFormCount > 0) {
+    score += 18;
+    reasons.push(
+      `Форма с чувствительными полями отправляет данные на внешний домен: ${externalFormHosts[0]}.`
+    );
+  }
+
+  if (sensitiveInputCount >= 4) {
+    score += 10;
+    reasons.push("На странице много полей для чувствительных данных.");
+  }
+
+  if (passwordFieldCount >= 2) {
+    score += 6;
+    reasons.push("На странице несколько полей пароля.");
   }
 
   if (hasIframe) {
@@ -150,6 +300,36 @@ export function analyzeSite(input) {
   if (formCount >= 3) {
     score += 5;
     reasons.push("На странице много форм для ввода данных.");
+  }
+
+  if ((hasPasswordField || sensitiveInputCount >= 2) && hasUrgencyLanguage) {
+    score += 12;
+    reasons.push("Страница сочетает сбор данных с формулировками срочности или блокировки.");
+  }
+
+  if (autocompleteOffFormCount > 0 && (hasPasswordField || sensitiveInputCount >= 2)) {
+    score += 5;
+    reasons.push("Для формы с чувствительными данными отключено автозаполнение.");
+  }
+
+  if (linkCount >= 10 && externalLinkRatio >= 0.85) {
+    score += 6;
+    reasons.push("Большая часть ссылок ведет на внешние домены.");
+  }
+
+  if (scriptCount >= 8 && externalScriptCount / Math.max(scriptCount, 1) >= 0.75) {
+    score += 6;
+    reasons.push("Большая часть скриптов загружается с внешних доменов.");
+  }
+
+  if (iframeCount >= 2 && externalIframeCount >= 2) {
+    score += 8;
+    reasons.push("Страница содержит несколько внешних iframe.");
+  }
+
+  if (hiddenInputCount >= 20 && (hasPasswordField || sensitiveInputCount >= 2)) {
+    score += 5;
+    reasons.push("В форме много скрытых полей вместе со сбором чувствительных данных.");
   }
 
   if (urlPrediction.ok && urlPrediction.probability >= 0.85) {
@@ -244,9 +424,36 @@ export function analyzeSite(input) {
       safeBrowsingMatches: safeBrowsing?.matches?.length || 0,
       urlModelScore: urlPrediction.ok ? urlPrediction.score : null,
       dnsAddressCount: networkSignals?.dns?.addressCount ?? null,
-      dnsNameServerCount: networkSignals?.dns?.nameServerCount ?? null
+      dnsNameServerCount: networkSignals?.dns?.nameServerCount ?? null,
+      brandMatches: brandImpersonationMatches.map((brand) => brand.name),
+      externalFormHosts,
+      sensitiveInputCount,
+      externalLinkRatio: Number.isFinite(externalLinkRatio)
+        ? Math.round(externalLinkRatio * 100)
+        : null
     }
   };
+}
+
+function getExternalHosts(hosts, registrableDomain) {
+  return [...new Set(hosts)]
+    .map((host) => ({
+      host,
+      registrableDomain: getRegistrableDomain(host)
+    }))
+    .filter((item) => item.host && item.registrableDomain !== registrableDomain)
+    .map((item) => item.host);
+}
+
+function findBrandImpersonationMatches(text, registrableDomain) {
+  return BRAND_PROFILES.filter((brand) => {
+    const mentionsBrand = brand.terms.some((term) => text.includes(term));
+    const officialDomain = brand.domains.some(
+      (domain) => getRegistrableDomain(domain) === registrableDomain
+    );
+
+    return mentionsBrand && !officialDomain;
+  });
 }
 
 function getSafeBrowsingStatus(safeBrowsing) {

@@ -11,6 +11,7 @@ const threatValue = document.getElementById("threatValue");
 const safeBrowsingValue = document.getElementById("safeBrowsingValue");
 const domainAgeValue = document.getElementById("domainAgeValue");
 const modelValue = document.getElementById("modelValue");
+const pageSignalsValue = document.getElementById("pageSignalsValue");
 const dnsValue = document.getElementById("dnsValue");
 const reasonsList = document.getElementById("reasonsList");
 const historyList = document.getElementById("historyList");
@@ -92,6 +93,7 @@ function renderResult(result) {
   modelValue.textContent = Number.isFinite(result.facts.urlModelScore)
     ? `${result.facts.urlModelScore}%`
     : "-";
+  pageSignalsValue.textContent = formatPageSignals(result.facts);
   dnsValue.textContent = Number.isFinite(result.facts.dnsAddressCount)
     ? String(result.facts.dnsAddressCount)
     : "-";
@@ -109,6 +111,7 @@ function renderError(message) {
   safeBrowsingValue.textContent = "-";
   domainAgeValue.textContent = "-";
   modelValue.textContent = "-";
+  pageSignalsValue.textContent = "-";
   dnsValue.textContent = "-";
   renderReasons([message]);
   scoreRing.style.background = "conic-gradient(#777 360deg, #d9d9d9 0deg)";
@@ -210,6 +213,26 @@ function formatSafeBrowsingStatus(status, matches) {
   }
 
   return "недоступно";
+}
+
+function formatPageSignals(facts) {
+  if (facts.brandMatches?.length) {
+    return "бренд";
+  }
+
+  if (facts.externalFormHosts?.length) {
+    return "внеш. форма";
+  }
+
+  if (facts.sensitiveInputCount > 0) {
+    return `${facts.sensitiveInputCount} полей`;
+  }
+
+  if (Number.isFinite(facts.externalLinkRatio) && facts.externalLinkRatio >= 85) {
+    return `${facts.externalLinkRatio}% внеш.`;
+  }
+
+  return "норма";
 }
 
 function formatRelativeTime(timestamp) {
