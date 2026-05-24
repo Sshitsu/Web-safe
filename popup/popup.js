@@ -1,4 +1,8 @@
 const extensionApi = globalThis.browser ?? globalThis.chrome;
+const ANALYSIS_MESSAGE_TIMEOUT_MS = 16000;
+const HISTORY_MESSAGE_TIMEOUT_MS = 5000;
+const usesPromiseRuntime =
+  typeof globalThis.browser !== "undefined" && extensionApi === globalThis.browser;
 
 const analyzeButton = document.getElementById("analyzeButton");
 const scoreValue = document.getElementById("scoreValue");
@@ -27,9 +31,10 @@ async function runAnalysis() {
   setLoadingState(true);
 
   try {
-    const response = await extensionApi.runtime.sendMessage({
-      type: "ANALYZE_ACTIVE_TAB"
-    });
+    const response = await sendRuntimeMessage(
+      { type: "ANALYZE_ACTIVE_TAB" },
+      ANALYSIS_MESSAGE_TIMEOUT_MS
+    );
 
     if (!response?.ok) {
       throw new Error(response?.error || "Не удалось выполнить анализ.");
@@ -46,9 +51,10 @@ async function runAnalysis() {
 
 async function loadHistory() {
   try {
-    const response = await extensionApi.runtime.sendMessage({
-      type: "GET_ANALYSIS_HISTORY"
-    });
+    const response = await sendRuntimeMessage(
+      { type: "GET_ANALYSIS_HISTORY" },
+      HISTORY_MESSAGE_TIMEOUT_MS
+    );
 
     renderHistory(response?.ok ? response.history : []);
   } catch (error) {
@@ -60,13 +66,67 @@ async function clearHistory() {
   clearHistoryButton.disabled = true;
 
   try {
-    await extensionApi.runtime.sendMessage({
-      type: "CLEAR_ANALYSIS_HISTORY"
-    });
+    await sendRuntimeMessage(
+      { type: "CLEAR_ANALYSIS_HISTORY" },
+      HISTORY_MESSAGE_TIMEOUT_MS
+    );
     renderHistory([]);
   } finally {
     clearHistoryButton.disabled = false;
   }
+}
+
+function sendRuntimeMessage(message, timeoutMs) {
+  const messagePromise = usesPromiseRuntime
+    ? extensionApi.runtime.sendMessage(message)
+    : new Promise((resolve, reject) => {
+        extensionApi.runtime.sendMessage(message, (response) => {
+          const error = extensionApi.runtime.lastError;
+          if (error) {
+            reject(new Error(error.message));
+            return;
+          }
+
+          resolve(response);
+        });
+      });
+
+  return withTimeout(messagePromise, timeoutMs);
+}
+
+function withTimeout(promise, timeoutMs) {
+  let settled = false;
+
+  return new Promise((resolve, reject) => {
+    const timeoutId = setTimeout(() => {
+      if (settled) {
+        return;
+      }
+
+      settled = true;
+      reject(new Error("Анализ занял слишком много времени. Попробуй обновить страницу или перезагрузить расширение."));
+    }, timeoutMs);
+
+    Promise.resolve(promise)
+      .then((value) => {
+        if (settled) {
+          return;
+        }
+
+        settled = true;
+        clearTimeout(timeoutId);
+        resolve(value);
+      })
+      .catch((error) => {
+        if (settled) {
+          return;
+        }
+
+        settled = true;
+        clearTimeout(timeoutId);
+        reject(error);
+      });
+  });
 }
 
 function setLoadingState(isLoading) {
