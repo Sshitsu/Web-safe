@@ -163,9 +163,4 @@ C:\Web safe\dist\web-safe\manifest.json
 - Google Safe Browsing Lookup API v4: `https://developers.google.com/safe-browsing/v4/lookup-api`
 - Public Suffix List: `https://publicsuffix.org/list/public_suffix_list.dat`
 
-## Что стоит сделать следующим этапом
 
-- добавить options-страницу для настройки backend URL
-- добавить production backend вместо локального `127.0.0.1`
-- добавить scheduled build/update для модели и Public Suffix List
-- добавить экспорт истории проверок для анализа качества
