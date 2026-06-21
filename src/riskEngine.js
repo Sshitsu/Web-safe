@@ -5,6 +5,7 @@ import {
   hasPunycode,
   isIpAddress
 } from "./domainUtils.js";
+import { predictSiteRisk } from "./siteFeatureModel.js";
 import { predictUrlRisk } from "./urlFeatureModel.js";
 
 const SUSPICIOUS_TLDS = new Set([
@@ -203,6 +204,13 @@ export function analyzeSite(input) {
   const hasUrgencyLanguage = URGENCY_WORDS.some((word) =>
     pageTextForSignals.includes(word)
   );
+  const sitePrediction = predictSiteRisk(input, {
+    brandImpersonationCount: brandImpersonationMatches.length,
+    externalFormHostCount: externalFormHosts.length,
+    externalPasswordFormHostCount: externalPasswordFormHosts.length,
+    hasUrgencyLanguage,
+    keywordMatchCount: keywordMatches.length
+  });
 
   if (threatIntel?.isKnownPhishing) {
     score += 85;
@@ -332,28 +340,30 @@ export function analyzeSite(input) {
     reasons.push("В форме много скрытых полей вместе со сбором чувствительных данных.");
   }
 
-  if (urlPrediction.ok && urlPrediction.probability >= 0.85) {
+  if (sitePrediction.ok && sitePrediction.probability >= 0.85) {
     score += 25;
     reasons.push(
       `URL-модель оценила адрес как очень подозрительный (${Math.round(
-        urlPrediction.probability * 100
+        sitePrediction.probability * 100
       )}%).`
     );
-  } else if (urlPrediction.ok && urlPrediction.probability >= 0.65) {
+  } else if (sitePrediction.ok && sitePrediction.probability >= 0.65) {
     score += 15;
     reasons.push(
       `URL-модель видит повышенный риск в структуре адреса (${Math.round(
-        urlPrediction.probability * 100
+        sitePrediction.probability * 100
       )}%).`
     );
-  } else if (urlPrediction.ok && urlPrediction.probability >= 0.45) {
+  } else if (sitePrediction.ok && sitePrediction.probability >= 0.45) {
     score += 8;
     reasons.push(
       `URL-модель нашла слабые подозрительные признаки (${Math.round(
-        urlPrediction.probability * 100
+        sitePrediction.probability * 100
       )}%).`
     );
   }
+
+  normalizeSiteModelReason(reasons, sitePrediction);
 
   const domainAgeDays = networkSignals?.rdap?.ageDays;
   if (Number.isFinite(domainAgeDays)) {
@@ -422,7 +432,9 @@ export function analyzeSite(input) {
       threatSources: threatIntel?.sources?.filter((source) => source.ok).length || 0,
       safeBrowsingStatus: getSafeBrowsingStatus(safeBrowsing),
       safeBrowsingMatches: safeBrowsing?.matches?.length || 0,
-      urlModelScore: urlPrediction.ok ? urlPrediction.score : null,
+      urlModelScore: sitePrediction.ok ? sitePrediction.score : (urlPrediction.ok ? urlPrediction.score : null),
+      siteModelVersion: sitePrediction.modelVersion,
+      siteModelTopFeatures: sitePrediction.topFeatures,
       dnsAddressCount: networkSignals?.dns?.addressCount ?? null,
       dnsNameServerCount: networkSignals?.dns?.nameServerCount ?? null,
       brandMatches: brandImpersonationMatches.map((brand) => brand.name),
@@ -443,6 +455,22 @@ function getExternalHosts(hosts, registrableDomain) {
     }))
     .filter((item) => item.host && item.registrableDomain !== registrableDomain)
     .map((item) => item.host);
+}
+
+function normalizeSiteModelReason(reasons, sitePrediction) {
+  const index = reasons.findIndex((reason) => reason.startsWith("URL-"));
+  if (index === -1 || !sitePrediction.ok) {
+    return;
+  }
+
+  const percent = Math.round(sitePrediction.probability * 100);
+  if (sitePrediction.probability >= 0.85) {
+    reasons[index] = `ML-модель оценила URL/DOM/DNS/RDAP-признаки как очень подозрительные (${percent}%).`;
+  } else if (sitePrediction.probability >= 0.65) {
+    reasons[index] = `ML-модель видит повышенный риск по URL/DOM/DNS/RDAP-признакам (${percent}%).`;
+  } else {
+    reasons[index] = `ML-модель нашла слабые URL/DOM/DNS/RDAP-признаки риска (${percent}%).`;
+  }
 }
 
 function findBrandImpersonationMatches(text, registrableDomain) {

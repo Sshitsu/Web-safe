@@ -1,0 +1,66 @@
+name: Web Safe CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  test-security-build:
+    name: Test, security scan and build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Install security tools
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install bandit detect-secrets semgrep
+
+      - name: Python syntax check
+        run: |
+          python -m py_compile \
+            backend/safe_browsing_proxy.py \
+            tools/build.py \
+            tools/score_url_model.py \
+            tools/train_site_model.py \
+            tools/train_url_model.py \
+            tools/update_public_suffix_list.py
+
+      - name: Functional tests
+        run: npm test
+
+      - name: Build extension package
+        run: python tools/build.py --skip-train --skip-psl
+
+      - name: Mozilla web-ext lint
+        run: npx --yes web-ext lint -s dist/web-safe
+
+      - name: Bandit Python security scan
+        run: bandit -r backend tools -x "**/__pycache__" -f txt
+
+      - name: detect-secrets scan
+        run: detect-secrets scan --all-files --exclude-files "(^dist/|__pycache__)"
+
+      - name: Semgrep community rules
+        run: semgrep scan --config=p/default --exclude=dist --exclude=src/publicSuffixData.js --exclude=data/public_suffix_rules.json --exclude=tests/pages --exclude=store/screenshots .
+
+      - name: Upload extension artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: web-safe-extension
+          path: dist/web-safe.zip

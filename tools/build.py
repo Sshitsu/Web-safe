@@ -20,6 +20,7 @@ EXTENSION_PATHS = [
 ]
 ALLOWED_BUILD_SCRIPTS = {
     "tools/update_public_suffix_list.py",
+    "tools/train_site_model.py",
     "tools/train_url_model.py",
 }
 
@@ -28,6 +29,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--skip-psl", action="store_true")
     parser.add_argument("--skip-train", action="store_true")
+    parser.add_argument("--skip-site-train", action="store_true")
     parser.add_argument("--positive-limit", type=int, default=8000)
     parser.add_argument("--negative-limit", type=int, default=8000)
     parser.add_argument("--epochs", type=int, default=120)
@@ -49,6 +51,20 @@ def main():
                 str(args.epochs),
             ]
         )
+
+        if not args.skip_site_train:
+            run(
+                [
+                    sys.executable,
+                    "tools/train_site_model.py",
+                    "--positive-limit",
+                    str(args.positive_limit),
+                    "--negative-limit",
+                    str(args.negative_limit),
+                    "--epochs",
+                    str(args.epochs),
+                ]
+            )
 
     prepare_dist()
     copy_extension_files()

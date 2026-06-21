@@ -1,0 +1,11 @@
+{
+  "name": "web-safe-extension",
+  "version": "0.2.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node tests/run_app_functional_tests.mjs",
+    "build:extension": "python tools/build.py --skip-train --skip-psl",
+    "lint:web-ext": "npx --yes web-ext lint -s dist/web-safe"
+  }
+}

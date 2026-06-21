@@ -163,4 +163,43 @@ C:\Web safe\dist\web-safe\manifest.json
 - Google Safe Browsing Lookup API v4: `https://developers.google.com/safe-browsing/v4/lookup-api`
 - Public Suffix List: `https://publicsuffix.org/list/public_suffix_list.dat`
 
+## Extended ML model, CI and store preparation
+
+Current version adds a second linear model layer in `src/siteFeatureModel.js`.
+Unlike the older URL-only model, this model can use combined URL, DOM, DNS and RDAP features.
+
+Important files:
+
+- `src/siteFeatureModel.js` extracts runtime features for the extended model.
+- `src/siteModelWeights.js` stores trained site-model weights.
+- `data/site_model_training_examples.csv` contains labeled DOM/DNS/RDAP training examples.
+- `tools/train_site_model.py` trains the extended model.
+- `tests/run_app_functional_tests.mjs` contains deterministic functional tests.
+- `.github/workflows/ci.yml` runs tests, security scans and extension build in GitHub Actions.
+- `store/` contains publication drafts for Chrome Web Store and Firefox Add-ons.
+
+Train the extended model:
+
+```powershell
+py tools\train_site_model.py --positive-limit 8000 --negative-limit 8000 --epochs 120
+```
+
+Run local tests:
+
+```powershell
+& "C:\Program Files\nodejs\npm.cmd" test
+```
+
+Run a fast build:
+
+```powershell
+py tools\build.py --skip-train --skip-psl
+```
+
+Run Mozilla lint:
+
+```powershell
+& "C:\Program Files\nodejs\npx.cmd" --yes web-ext lint -s dist\web-safe
+```
+
 

@@ -9,13 +9,13 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 API_URL = "https://safebrowsing.googleapis.com/v4/threatMatches:find"
 CLIENT_ID = "web-safe"
-CLIENT_VERSION = "0.1.0"
+CLIENT_VERSION = "0.2.0"
 DEFAULT_HOST = "127.0.0.1"
 DEFAULT_PORT = 8787
 
 
 class Handler(BaseHTTPRequestHandler):
-    server_version = "WebSafeSafeBrowsingProxy/0.1"
+    server_version = "WebSafeSafeBrowsingProxy/0.2"
 
     def do_OPTIONS(self):
         self.send_empty(204)
@@ -120,7 +120,7 @@ def check_url(key, url):
         data=json.dumps(build_request_body(url)).encode("utf-8"),
         headers={
             "content-type": "application/json",
-            "user-agent": "WebSafeSafeBrowsingProxy/0.1",
+            "user-agent": "WebSafeSafeBrowsingProxy/0.2",
         },
         method="POST",
     )
