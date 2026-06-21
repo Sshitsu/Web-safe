@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import argparse
 import json
+import urllib.parse
 import urllib.request
 from datetime import datetime, timezone
 from pathlib import Path
@@ -81,9 +82,17 @@ def write_js(path, payload):
 
 
 def download_text(url):
+    assert_https_url(url)
     request = urllib.request.Request(url, headers={"User-Agent": "WebSafeBuild/0.1"})
-    with urllib.request.urlopen(request, timeout=30) as response:
+    # PSL URL is validated as HTTPS above.
+    with urllib.request.urlopen(request, timeout=30) as response:  # nosec B310  # nosemgrep: python.lang.security.audit.dynamic-urllib-use-detected.dynamic-urllib-use-detected
         return response.read().decode("utf-8", errors="replace")
+
+
+def assert_https_url(url):
+    parsed_url = urllib.parse.urlparse(url)
+    if parsed_url.scheme != "https" or not parsed_url.netloc:
+        raise ValueError(f"Only HTTPS URLs are allowed for downloads: {url}")
 
 
 if __name__ == "__main__":

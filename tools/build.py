@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 import argparse
 import shutil
-import subprocess
+# Used only with a fixed Python executable and allowlisted local scripts.
+import subprocess  # nosec B404
 import sys
 import zipfile
 from pathlib import Path
@@ -12,10 +13,15 @@ PACKAGE_DIR = DIST / "web-safe"
 PACKAGE_ZIP = DIST / "web-safe.zip"
 EXTENSION_PATHS = [
     "manifest.json",
+    "icons",
     "popup",
     "src",
     "README.md",
 ]
+ALLOWED_BUILD_SCRIPTS = {
+    "tools/update_public_suffix_list.py",
+    "tools/train_url_model.py",
+}
 
 
 def main():
@@ -53,8 +59,18 @@ def main():
 
 
 def run(command):
+    validate_build_command(command)
     print("$ " + " ".join(command))
-    subprocess.run(command, cwd=ROOT, check=True)
+    # Command is allowlisted and shell=False by default.
+    subprocess.run(command, cwd=ROOT, check=True)  # nosec B603
+
+
+def validate_build_command(command):
+    if not command or Path(command[0]).resolve() != Path(sys.executable).resolve():
+        raise RuntimeError("Build script can only execute the current Python interpreter.")
+
+    if len(command) < 2 or command[1] not in ALLOWED_BUILD_SCRIPTS:
+        raise RuntimeError(f"Build command is not allowlisted: {' '.join(command)}")
 
 
 def prepare_dist():

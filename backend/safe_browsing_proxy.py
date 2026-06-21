@@ -113,8 +113,10 @@ class Handler(BaseHTTPRequestHandler):
 
 def check_url(key, url):
     query = urllib.parse.urlencode({"key": key})
+    endpoint = f"{API_URL}?{query}"
+    assert_https_url(endpoint)
     request = urllib.request.Request(
-        f"{API_URL}?{query}",
+        endpoint,
         data=json.dumps(build_request_body(url)).encode("utf-8"),
         headers={
             "content-type": "application/json",
@@ -123,7 +125,8 @@ def check_url(key, url):
         method="POST",
     )
 
-    with urllib.request.urlopen(request, timeout=10) as response:
+    # Safe Browsing endpoint is validated as HTTPS above.
+    with urllib.request.urlopen(request, timeout=10) as response:  # nosec B310  # nosemgrep: python.lang.security.audit.dynamic-urllib-use-detected.dynamic-urllib-use-detected
         return json.loads(response.read().decode("utf-8") or "{}")
 
 
@@ -151,13 +154,22 @@ def api_key():
     return os.environ.get("GOOGLE_SAFE_BROWSING_API_KEY", "").strip()
 
 
+def assert_https_url(url):
+    parsed_url = urllib.parse.urlparse(url)
+    if parsed_url.scheme != "https" or not parsed_url.netloc:
+        raise ValueError("Only HTTPS URLs are allowed for outbound Safe Browsing requests.")
+
+
 def main():
     host = os.environ.get("WEB_SAFE_BACKEND_HOST", DEFAULT_HOST)
     port = int(os.environ.get("WEB_SAFE_BACKEND_PORT", DEFAULT_PORT))
     server = ThreadingHTTPServer((host, port), Handler)
+    key_configured = bool(api_key())
 
     print(f"Web Safe Safe Browsing proxy listening on http://{host}:{port}")
-    print("Set GOOGLE_SAFE_BROWSING_API_KEY to enable Google checks.")
+    print(f"Google Safe Browsing key configured: {'yes' if key_configured else 'no'}")
+    if not key_configured:
+        print("Set GOOGLE_SAFE_BROWSING_API_KEY to enable Google checks.")
     server.serve_forever()
 
 

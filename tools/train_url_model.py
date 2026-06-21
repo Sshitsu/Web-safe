@@ -354,9 +354,17 @@ def download_text(url):
 
 
 def download_bytes(url):
+    assert_https_url(url)
     request = urllib.request.Request(url, headers={"User-Agent": "WebSafeModelTrainer/0.1"})
-    with urllib.request.urlopen(request, timeout=30) as response:
+    # Training data URLs are validated as HTTPS above.
+    with urllib.request.urlopen(request, timeout=30) as response:  # nosec B310  # nosemgrep: python.lang.security.audit.dynamic-urllib-use-detected.dynamic-urllib-use-detected
         return response.read()
+
+
+def assert_https_url(url):
+    parsed_url = urllib.parse.urlparse(url)
+    if parsed_url.scheme != "https" or not parsed_url.netloc:
+        raise ValueError(f"Only HTTPS URLs are allowed for downloads: {url}")
 
 
 def sigmoid(value):

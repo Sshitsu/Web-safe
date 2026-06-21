@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-label="Web Safe shield icon">
+  <defs>
+    <linearGradient id="shield" x1="0" x2="0" y1="10" y2="118" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#21c7aa"/>
+      <stop offset="1" stop-color="#0b6f84"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="6" stdDeviation="5" flood-color="#08242d" flood-opacity=".25"/>
+    </filter>
+  </defs>
+  <path
+    fill="#0b2f3a"
+    filter="url(#shadow)"
+    d="M64 8 103 23c-2 42-7 70-39 96C32 93 27 65 25 23L64 8Z"/>
+  <path
+    fill="url(#shield)"
+    d="M64 17 94 29c-2 35-7 58-30 78C41 87 36 64 34 29l30-12Z"/>
+  <path
+    fill="#fff"
+    opacity=".18"
+    d="M64 24 88 34c-.8 13-2.4 25-5.6 36C69 64 57 55 47 44c3.6-6.7 9.2-14 17-20Z"/>
+  <path
+    fill="none"
+    stroke="#fff"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+    stroke-width="12"
+    d="m42 63 15 15 31-36"/>
+</svg>
