@@ -28,7 +28,11 @@ FEATURE_NAMES = [
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--input", default="data/network_model_training_examples.csv")
+    parser.add_argument(
+        "--input",
+        action="append",
+        help="CSV with label and DNS/RDAP feature columns. Can be passed multiple times.",
+    )
     parser.add_argument("--output", default="src/networkModelWeights.js")
     parser.add_argument("--epochs", type=int, default=180)
     parser.add_argument("--learning-rate", type=float, default=0.08)
@@ -36,7 +40,8 @@ def main():
     parser.add_argument("--seed", type=int, default=42)
     args = parser.parse_args()
 
-    rows = load_binary_feature_rows(args.input, FEATURE_NAMES)
+    input_paths = args.input or default_input_paths()
+    rows = load_rows_from_inputs(input_paths)
     train_rows, test_rows = split_rows(rows, args.test_ratio, args.seed)
     weights, intercept = train_logistic_regression(
         train_rows,
@@ -50,7 +55,7 @@ def main():
         Path(args.output),
         "NETWORK_MODEL",
         "network-linear-v1",
-        [args.input],
+        input_paths,
         rows,
         weights,
         intercept,
@@ -59,6 +64,21 @@ def main():
 
     print(f"trained DNS/RDAP model on {len(train_rows)} rows, tested on {len(test_rows)} rows")
     print(json.dumps(metrics, indent=2, sort_keys=True))
+
+
+def default_input_paths():
+    paths = ["data/network_model_training_examples.csv"]
+    generated = Path("data/generated/network_runtime_features.csv")
+    if generated.exists():
+        paths.append(str(generated))
+    return paths
+
+
+def load_rows_from_inputs(paths):
+    rows = []
+    for path in paths:
+        rows.extend(load_binary_feature_rows(path, FEATURE_NAMES))
+    return rows
 
 
 if __name__ == "__main__":

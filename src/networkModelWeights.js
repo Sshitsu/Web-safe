@@ -1,33 +1,34 @@
 export const NETWORK_MODEL = {
-  "intercept": -3.552911,
+  "intercept": -2.777543,
   "metrics": {
-    "accuracy": 1.0,
+    "accuracy": 0.9,
     "falseNegative": 0,
-    "falsePositive": 0,
-    "logLoss": 0.0965,
-    "precision": 1.0,
+    "falsePositive": 2,
+    "logLoss": 0.185,
+    "precision": 0.8333,
     "recall": 1.0,
-    "trueNegative": 2,
-    "truePositive": 2
+    "trueNegative": 8,
+    "truePositive": 10
   },
-  "trainedAt": "2026-06-21T13:09:28.190826+00:00",
+  "trainedAt": "2026-06-21T13:26:30.903980+00:00",
   "trainingData": {
-    "samples": 20,
+    "samples": 80,
     "sources": [
-      "data/network_model_training_examples.csv"
+      "data/network_model_training_examples.csv",
+      "data\\generated\\network_runtime_features.csv"
     ]
   },
   "version": "network-linear-v1",
   "weights": {
-    "dnsNoAddress": 0.998231,
-    "dnsNoNameServers": 0.998231,
-    "dnsShortTtl": 2.292568,
-    "dnsUnavailable": -0.81092,
-    "noMxRecord": 0.348187,
-    "rdapUnavailable": 1.374943,
-    "recentDomainChange7": 0.974748,
-    "youngDomain30": 4.130952,
-    "youngDomain7": 5.063874,
-    "youngDomain90": 1.360714
+    "dnsNoAddress": -0.533895,
+    "dnsNoNameServers": 1.500466,
+    "dnsShortTtl": -1.133969,
+    "dnsUnavailable": -0.623927,
+    "noMxRecord": 0.955086,
+    "rdapUnavailable": 4.757366,
+    "recentDomainChange7": -0.079822,
+    "youngDomain30": 5.532505,
+    "youngDomain7": 4.744673,
+    "youngDomain90": 3.28775
   }
 };

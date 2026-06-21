@@ -30,7 +30,7 @@ The extension checks:
 - Domain and network signals: registrable domain detection through Public Suffix List, DNS records and RDAP domain age.
 - Threat intelligence: OpenPhish and Phishing.Database community feeds.
 - Optional Google Safe Browsing check through a backend proxy, so the API key is not stored inside the extension.
-- Separate trained linear models for URL, DOM and DNS/RDAP signals.
+- Separate trained linear models for URL, DOM and DNS/RDAP signals. The DOM model can be trained from PhiUSIIL-derived page/source-code features, and the DNS/RDAP model can be trained from runtime-enriched phishing and benign URL feeds.
 
 The result is shown as a score from 0 to 100 with a low, medium or high risk label. Web Safe also explains the reasons that affected the score, so the user can understand the warning instead of seeing only a black-box verdict.
 

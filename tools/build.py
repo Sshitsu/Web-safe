@@ -19,6 +19,8 @@ EXTENSION_PATHS = [
     "README.md",
 ]
 ALLOWED_BUILD_SCRIPTS = {
+    "tools/build_dom_feature_dataset_from_phiusiil.py",
+    "tools/build_network_feature_dataset.py",
     "tools/train_dom_model.py",
     "tools/train_network_model.py",
     "tools/update_public_suffix_list.py",
@@ -32,6 +34,7 @@ def main():
     parser.add_argument("--skip-train", action="store_true")
     parser.add_argument("--skip-runtime-train", action="store_true")
     parser.add_argument("--skip-site-train", action="store_true")
+    parser.add_argument("--refresh-runtime-datasets", action="store_true")
     parser.add_argument("--positive-limit", type=int, default=8000)
     parser.add_argument("--negative-limit", type=int, default=8000)
     parser.add_argument("--epochs", type=int, default=120)
@@ -55,6 +58,9 @@ def main():
         )
 
         if not args.skip_runtime_train and not args.skip_site_train:
+            if args.refresh_runtime_datasets:
+                run([sys.executable, "tools/build_dom_feature_dataset_from_phiusiil.py"])
+                run([sys.executable, "tools/build_network_feature_dataset.py"])
             run([sys.executable, "tools/train_dom_model.py"])
             run([sys.executable, "tools/train_network_model.py"])
 

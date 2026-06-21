@@ -36,6 +36,8 @@ jobs:
           python -m py_compile \
             backend/safe_browsing_proxy.py \
             tools/build.py \
+            tools/build_dom_feature_dataset_from_phiusiil.py \
+            tools/build_network_feature_dataset.py \
             tools/score_url_model.py \
             tools/linear_model_training.py \
             tools/train_dom_model.py \
@@ -56,10 +58,10 @@ jobs:
         run: bandit -r backend tools -x "**/__pycache__" -f txt
 
       - name: detect-secrets scan
-        run: detect-secrets scan --all-files --exclude-files "(^dist/|__pycache__)"
+        run: detect-secrets scan --all-files --exclude-files "(^dist/|^data/external/|^data/generated/|__pycache__)"
 
       - name: Semgrep community rules
-        run: semgrep scan --config=p/default --exclude=dist --exclude=src/publicSuffixData.js --exclude=data/public_suffix_rules.json --exclude=tests/pages --exclude=store/screenshots .
+        run: semgrep scan --config=p/default --exclude=dist --exclude=data/external --exclude=data/generated --exclude=src/publicSuffixData.js --exclude=data/public_suffix_rules.json --exclude=tests/pages --exclude=store/screenshots .
 
       - name: Upload extension artifact
         uses: actions/upload-artifact@v4

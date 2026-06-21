@@ -174,8 +174,10 @@ Important files:
 - `src/networkFeatureModel.js` extracts DNS/RDAP features for the network model.
 - `src/domModelWeights.js` stores trained DOM-model weights.
 - `src/networkModelWeights.js` stores trained DNS/RDAP-model weights.
-- `data/dom_model_training_examples.csv` contains labeled DOM training examples.
-- `data/network_model_training_examples.csv` contains labeled DNS/RDAP training examples.
+- `data/dom_model_training_examples.csv` contains expert labeled DOM training examples.
+- `data/network_model_training_examples.csv` contains expert labeled DNS/RDAP training examples.
+- `tools/build_dom_feature_dataset_from_phiusiil.py` converts the public PhiUSIIL dataset into Web Safe DOM features.
+- `tools/build_network_feature_dataset.py` enriches phishing/benign URL feeds with live DNS/RDAP features.
 - `tools/train_dom_model.py` trains the DOM model.
 - `tools/train_network_model.py` trains the DNS/RDAP model.
 - `tests/run_app_functional_tests.mjs` contains deterministic functional tests.
@@ -185,9 +187,14 @@ Important files:
 Train the extended model:
 
 ```powershell
+py tools\build_dom_feature_dataset_from_phiusiil.py --positive-limit 8000 --negative-limit 8000
+py tools\build_network_feature_dataset.py --positive-limit 30 --negative-limit 30
 py tools\train_dom_model.py
 py tools\train_network_model.py
 ```
+
+Generated external datasets are stored under `data/generated` and downloaded archives under `data/external`.
+These folders are intentionally ignored by Git because the datasets can be rebuilt from public sources.
 
 Run local tests:
 
