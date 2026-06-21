@@ -1,8 +1,9 @@
 import assert from "node:assert/strict";
 
+import { extractDomFeatures, predictDomRisk } from "../src/domFeatureModel.js";
 import { getRegistrableDomain } from "../src/domainUtils.js";
+import { extractNetworkFeatures, predictNetworkRisk } from "../src/networkFeatureModel.js";
 import { analyzeSite } from "../src/riskEngine.js";
-import { extractSiteFeatures, predictSiteRisk } from "../src/siteFeatureModel.js";
 import { predictUrlRisk } from "../src/urlFeatureModel.js";
 
 const cleanThreatIntel = {
@@ -62,10 +63,9 @@ test("Public Suffix List extracts registrable domain for co.uk", () => {
   assert.equal(getRegistrableDomain("shop.example.co.uk"), "example.co.uk");
 });
 
-test("Site model extracts DOM, DNS and RDAP features", () => {
-  const features = extractSiteFeatures(
+test("DOM model extracts page-structure features", () => {
+  const features = extractDomFeatures(
     {
-      url: "https://account-security-check.example/login",
       hasPasswordField: true,
       passwordFieldCount: 1,
       sensitiveInputCount: 4,
@@ -73,19 +73,7 @@ test("Site model extracts DOM, DNS and RDAP features", () => {
       linkCount: 20,
       externalLinkRatio: 0.9,
       scriptCount: 10,
-      externalScriptCount: 8,
-      networkSignals: {
-        dns: {
-          ok: true,
-          hasAddress: false,
-          hasNameServers: false,
-          minTtl: 120
-        },
-        rdap: {
-          ageDays: 5,
-          lastChangedDays: 2
-        }
-      }
+      externalScriptCount: 8
     },
     {
       brandImpersonationCount: 1,
@@ -98,17 +86,37 @@ test("Site model extracts DOM, DNS and RDAP features", () => {
   assert.equal(features.externalPasswordForm, 1);
   assert.equal(features.highExternalLinkRatio, 1);
   assert.equal(features.highExternalScriptRatio, 1);
+  assert.equal(features.brandImpersonation, 1);
+  assert.equal(features.urgencyWithSensitive, 1);
+});
+
+test("DNS/RDAP model extracts network and registration features", () => {
+  const features = extractNetworkFeatures({
+    dns: {
+      ok: true,
+      hasAddress: false,
+      hasNameServers: false,
+      hasMx: false,
+      minTtl: 120
+    },
+    rdap: {
+      ok: true,
+      ageDays: 5,
+      lastChangedDays: 2
+    }
+  });
+
   assert.equal(features.youngDomain7, 1);
   assert.equal(features.recentDomainChange7, 1);
   assert.equal(features.dnsNoAddress, 1);
   assert.equal(features.dnsNoNameServers, 1);
   assert.equal(features.dnsShortTtl, 1);
+  assert.equal(features.noMxRecord, 1);
 });
 
-test("Site model combines URL, DOM, DNS and RDAP signals", () => {
-  const prediction = predictSiteRisk(
+test("DOM model scores a phishing-like page structure as high risk", () => {
+  const prediction = predictDomRisk(
     {
-      url: "https://account-security-check.example/login",
       hasPasswordField: true,
       passwordFieldCount: 1,
       sensitiveInputCount: 4,
@@ -116,19 +124,7 @@ test("Site model combines URL, DOM, DNS and RDAP signals", () => {
       linkCount: 20,
       externalLinkRatio: 0.9,
       scriptCount: 10,
-      externalScriptCount: 8,
-      networkSignals: {
-        dns: {
-          ok: true,
-          hasAddress: false,
-          hasNameServers: false,
-          minTtl: 120
-        },
-        rdap: {
-          ageDays: 5,
-          lastChangedDays: 2
-        }
-      }
+      externalScriptCount: 8
     },
     {
       brandImpersonationCount: 1,
@@ -139,8 +135,29 @@ test("Site model combines URL, DOM, DNS and RDAP signals", () => {
   );
 
   assert.equal(prediction.ok, true);
-  assert.ok(prediction.score >= 90, `Expected >= 90, got ${prediction.score}`);
+  assert.ok(prediction.score >= 80, `Expected >= 80, got ${prediction.score}`);
   assert.ok(prediction.topFeatures.includes("externalPasswordForm"));
+});
+
+test("DNS/RDAP model scores a young unstable domain as high risk", () => {
+  const prediction = predictNetworkRisk({
+    dns: {
+      ok: true,
+      hasAddress: false,
+      hasNameServers: false,
+      hasMx: false,
+      minTtl: 120
+    },
+    rdap: {
+      ok: true,
+      ageDays: 5,
+      lastChangedDays: 2
+    }
+  });
+
+  assert.equal(prediction.ok, true);
+  assert.ok(prediction.score >= 80, `Expected >= 80, got ${prediction.score}`);
+  assert.ok(prediction.topFeatures.includes("youngDomain7"));
 });
 
 test("Risk engine returns low risk for a stable benign page", () => {
@@ -192,7 +209,7 @@ test("Risk engine detects brand impersonation and external password form", () =>
   });
 
   assert.ok(result.score >= 70, `Expected score >= 70, got ${result.score}`);
-  assert.ok(result.facts.siteModelTopFeatures.includes("externalPasswordForm"));
+  assert.ok(result.facts.domModelTopFeatures.includes("externalPasswordForm"));
 });
 
 test("Risk engine raises high risk for a threat feed match", () => {

@@ -1,23 +1,12 @@
-import { extractUrlFeatures } from "./urlFeatureModel.js";
-import { SITE_MODEL } from "./siteModelWeights.js";
+import { DOM_MODEL } from "./domModelWeights.js";
 
-export function predictSiteRisk(input, derivedSignals = {}) {
-  const features = extractSiteFeatures(input, derivedSignals);
-  if (!features) {
-    return {
-      ok: false,
-      probability: 1,
-      score: 100,
-      modelVersion: SITE_MODEL.version,
-      topFeatures: ["invalidUrl"]
-    };
-  }
-
-  let logit = SITE_MODEL.intercept;
+export function predictDomRisk(input, derivedSignals = {}) {
+  const features = extractDomFeatures(input, derivedSignals);
+  let logit = DOM_MODEL.intercept;
   const contributions = [];
 
   for (const [name, value] of Object.entries(features)) {
-    const weight = SITE_MODEL.weights[name] || 0;
+    const weight = DOM_MODEL.weights[name] || 0;
     const contribution = weight * value;
     logit += contribution;
 
@@ -35,20 +24,15 @@ export function predictSiteRisk(input, derivedSignals = {}) {
     ok: true,
     probability,
     score: Math.round(probability * 100),
-    modelVersion: SITE_MODEL.version,
+    modelVersion: DOM_MODEL.version,
     topFeatures: contributions
       .sort((a, b) => b.contribution - a.contribution)
-      .slice(0, 6)
+      .slice(0, 5)
       .map((item) => item.name)
   };
 }
 
-export function extractSiteFeatures(input, derivedSignals = {}) {
-  const urlFeatures = extractUrlFeatures(input.url);
-  if (!urlFeatures) {
-    return null;
-  }
-
+export function extractDomFeatures(input, derivedSignals = {}) {
   const sensitiveInputCount = Number(input.sensitiveInputCount || 0);
   const passwordFieldCount = Number(input.passwordFieldCount || 0);
   const formCount = Number(input.formCount || 0);
@@ -58,18 +42,15 @@ export function extractSiteFeatures(input, derivedSignals = {}) {
   const externalIframeCount = Number(input.externalIframeCount || 0);
   const hiddenInputCount = Number(input.hiddenInputCount || 0);
   const externalLinkRatio = Number(input.externalLinkRatio || 0);
-  const domainAgeDays = input.networkSignals?.rdap?.ageDays;
-  const lastChangedDays = input.networkSignals?.rdap?.lastChangedDays;
-  const minTtl = input.networkSignals?.dns?.minTtl;
 
   return {
-    ...urlFeatures,
     hasPasswordField: input.hasPasswordField ? 1 : 0,
     multiplePasswordFields: passwordFieldCount >= 2 ? 1 : 0,
     manySensitiveInputs: sensitiveInputCount >= 4 ? 1 : 0,
     externalPasswordForm: Number(derivedSignals.externalPasswordFormHostCount || 0) > 0 ? 1 : 0,
     externalSensitiveForm:
-      Number(derivedSignals.externalFormHostCount || 0) > 0 && Number(input.sensitiveFormCount || 0) > 0
+      Number(derivedSignals.externalFormHostCount || 0) > 0 &&
+      Number(input.sensitiveFormCount || 0) > 0
         ? 1
         : 0,
     autocompleteOffSensitiveForm:
@@ -91,14 +72,6 @@ export function extractSiteFeatures(input, derivedSignals = {}) {
       Boolean(derivedSignals.hasUrgencyLanguage) &&
       (input.hasPasswordField || sensitiveInputCount >= 2)
         ? 1
-        : 0,
-    youngDomain7: Number.isFinite(domainAgeDays) && domainAgeDays < 7 ? 1 : 0,
-    youngDomain30: Number.isFinite(domainAgeDays) && domainAgeDays >= 7 && domainAgeDays < 30 ? 1 : 0,
-    youngDomain90: Number.isFinite(domainAgeDays) && domainAgeDays >= 30 && domainAgeDays < 90 ? 1 : 0,
-    recentDomainChange7: Number.isFinite(lastChangedDays) && lastChangedDays < 7 ? 1 : 0,
-    dnsNoAddress: input.networkSignals?.dns?.ok && !input.networkSignals.dns.hasAddress ? 1 : 0,
-    dnsNoNameServers:
-      input.networkSignals?.dns?.ok && !input.networkSignals.dns.hasNameServers ? 1 : 0,
-    dnsShortTtl: input.networkSignals?.dns?.ok && Number.isFinite(minTtl) && minTtl <= 180 ? 1 : 0
+        : 0
   };
 }

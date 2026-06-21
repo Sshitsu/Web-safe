@@ -150,8 +150,8 @@ function renderResult(result) {
     result.facts.safeBrowsingMatches
   );
   domainAgeValue.textContent = formatDomainAge(result.facts.domainAgeDays);
-  modelValue.textContent = Number.isFinite(result.facts.urlModelScore)
-    ? `${result.facts.urlModelScore}%`
+  modelValue.textContent = Number.isFinite(result.facts.mlModelScore)
+    ? `${result.facts.mlModelScore}%`
     : "-";
   pageSignalsValue.textContent = formatPageSignals(result.facts);
   dnsValue.textContent = Number.isFinite(result.facts.dnsAddressCount)

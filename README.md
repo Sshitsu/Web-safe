@@ -165,15 +165,19 @@ C:\Web safe\dist\web-safe\manifest.json
 
 ## Extended ML model, CI and store preparation
 
-Current version adds a second linear model layer in `src/siteFeatureModel.js`.
-Unlike the older URL-only model, this model can use combined URL, DOM, DNS and RDAP features.
+Current version uses separate linear models for separate signal groups:
+URL, DOM and DNS/RDAP. The final risk engine combines their predictions with rule-based signals.
 
 Important files:
 
-- `src/siteFeatureModel.js` extracts runtime features for the extended model.
-- `src/siteModelWeights.js` stores trained site-model weights.
-- `data/site_model_training_examples.csv` contains labeled DOM/DNS/RDAP training examples.
-- `tools/train_site_model.py` trains the extended model.
+- `src/domFeatureModel.js` extracts page-structure features for the DOM model.
+- `src/networkFeatureModel.js` extracts DNS/RDAP features for the network model.
+- `src/domModelWeights.js` stores trained DOM-model weights.
+- `src/networkModelWeights.js` stores trained DNS/RDAP-model weights.
+- `data/dom_model_training_examples.csv` contains labeled DOM training examples.
+- `data/network_model_training_examples.csv` contains labeled DNS/RDAP training examples.
+- `tools/train_dom_model.py` trains the DOM model.
+- `tools/train_network_model.py` trains the DNS/RDAP model.
 - `tests/run_app_functional_tests.mjs` contains deterministic functional tests.
 - `.github/workflows/ci.yml` runs tests, security scans and extension build in GitHub Actions.
 - `store/` contains publication drafts for Chrome Web Store and Firefox Add-ons.
@@ -181,7 +185,8 @@ Important files:
 Train the extended model:
 
 ```powershell
-py tools\train_site_model.py --positive-limit 8000 --negative-limit 8000 --epochs 120
+py tools\train_dom_model.py
+py tools\train_network_model.py
 ```
 
 Run local tests:

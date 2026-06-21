@@ -37,7 +37,9 @@ jobs:
             backend/safe_browsing_proxy.py \
             tools/build.py \
             tools/score_url_model.py \
-            tools/train_site_model.py \
+            tools/linear_model_training.py \
+            tools/train_dom_model.py \
+            tools/train_network_model.py \
             tools/train_url_model.py \
             tools/update_public_suffix_list.py
 
